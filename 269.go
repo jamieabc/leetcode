@@ -47,19 +47,113 @@ import "math"
 //     There may be multiple valid order of letters, return any one of them is fine.
 
 func alienOrder(words []string) string {
-	graph, inDegree := buildGraph(words)
+    inDegree := make([]int, 26)
+    unique := make([]bool, 26)
+    to := make([][]bool, 26)
+    for i := range to {
+        to[i] = make([]bool, 26)
+    }
 
-	//     for key, val := range graph {
-	//         m := make([]string, 0)
-	//         for _, s := range val {
-	//             m = append(m, string(s))
-	//         }
-	//         fmt.Printf("%s: %v\n", string(key), m)
-	//     }
+    var j, idx, cur int
+    prev := -1
+    for i, word := range words {
+        cur = int(word[0]-'a')
+        unique[cur] = true
 
-	// for i := range inDegree {
-	//     fmt.Printf("%s: %d\n", string(byte('a'+i)), inDegree[i])
-	// }
+        j = 0
+        if prev != -1 {
+            if cur != prev {
+                // first char different provide order information
+                if !to[prev][cur] {
+                    inDegree[cur]++
+                    to[prev][cur] = true
+                }
+                j = 1
+            } else {
+                // first char same, two words should provide order information
+                for j = range word {
+                    unique[word[j]-'a'] = true
+
+                    if j == len(words[i-1]) {
+						// make sure latter checking won't get out of boundary
+						// two words with same prefix, shorter one shold be
+						// former than the other
+						// e.g. [abc, ab] is invalid, where as [ab, abc] is valid
+                        j--
+                        break
+                    }
+
+                    if word[j] != words[i-1][j] {
+                        former, latter := int(words[i-1][j]-'a'), int(word[j]-'a')
+
+                        if !to[former][latter] {
+                            inDegree[latter]++
+                            to[former][latter] = true
+                        }
+
+                        break
+                    }
+                }
+
+                // all previous characters are same, shorter word shoud be in front
+                if words[i-1][j] == word[j] && len(words[i-1]) > len(word) {
+                    return ""
+                }
+                j++
+            }
+        }
+        // process remain words
+        for ; j < len(word); j++ {
+            unique[word[j]-'a'] = true
+        }
+
+        prev = cur
+    }
+
+    queue := make([]int, 0)
+    var distinct int
+    for i := range unique {
+        if unique[i] {
+            distinct++
+
+            if inDegree[i] == 0 {
+                queue = append(queue, i)
+            }
+        }
+    }
+
+    // no char with 0 in degree
+    if len(queue) == 0 {
+        return ""
+    }
+
+    // topological sort
+    order := make([]byte, 0)
+
+    for len(queue) > 0 {
+        idx = queue[0]
+        queue = queue[1:]
+        order = append(order, byte('a'+idx))
+
+        for i, val := range to[idx] {
+            if val {
+                inDegree[i]--
+
+                if inDegree[i] == 0 {
+                    queue = append(queue, i)
+                }
+            }
+        }
+    }
+
+    if len(order) != distinct {
+        return ""
+    }
+    return string(order)
+}
+
+func alienOrder1(words []string) string {
+	graph, inDegree := buildGraph1(words)
 
 	var wordCount int
 	for i := range inDegree {
@@ -68,7 +162,7 @@ func alienOrder(words []string) string {
 		}
 	}
 
-	order := topologicalSort(graph, inDegree)
+	order := topologicalSort1(graph, inDegree)
 
 	if len(order) == wordCount {
 		return string(order)
@@ -76,7 +170,7 @@ func alienOrder(words []string) string {
 	return ""
 }
 
-func topologicalSort(graph map[byte][]byte, inDegree []int) []byte {
+func topologicalSort1(graph map[byte][]byte, inDegree []int) []byte {
 	sources := make([]byte, 0)
 	for i := range inDegree {
 		if inDegree[i] == 0 {
@@ -103,7 +197,7 @@ func topologicalSort(graph map[byte][]byte, inDegree []int) []byte {
 	return result
 }
 
-func buildGraph(words []string) (map[byte][]byte, []int) {
+func buildGraph1(words []string) (map[byte][]byte, []int) {
 	graph := make(map[byte][]byte)
 	inDegree := make([]int, 26)
 	for i := range inDegree {
@@ -160,7 +254,7 @@ func addDegree(inDegree []int, b byte) {
 	}
 }
 
-//	problems
+//	Notes
 //	1.	for every word first char, need to put it into graph
 
 //	2.	for char after first difference, also need to add them into graph
